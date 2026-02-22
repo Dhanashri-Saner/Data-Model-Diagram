@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, { 
   addEdge, Background, Controls, applyNodeChanges, applyEdgeChanges, MarkerType,
   Panel, getNodesBounds, useReactFlow, ReactFlowProvider 
@@ -6,7 +6,7 @@ import ReactFlow, {
 import { toSvg, toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import 'reactflow/dist/style.css';
-import { RefreshCcw, Trash2, Plus, Database, Edit2, Check, Key, Link as LinkIcon, Layers, X } from 'lucide-react';
+import { RefreshCcw, Trash2, Plus, Database, Edit2, Check, Key, Link as LinkIcon, Layers, X, Upload, Download } from 'lucide-react';
 import TableNode from './TableNode';
 
 const nodeTypes = {
@@ -51,7 +51,8 @@ function FlowApp() {
   const [edgeToDelete, setEdgeToDelete] = useState('');
   const [editingNodeId, setEditingNodeId] = useState(null);
   const [showExportToast, setShowExportToast] = useState(false);
-  
+  const fileInputRef = useRef(null);
+
   const [legend, setLegend] = useState(() => {
     try {
       const saved = localStorage.getItem('legend');
@@ -189,6 +190,49 @@ function FlowApp() {
     const target = nodes.find(n => n.id === edge.target);
     return `${source?.data?.label || 'Source'} → ${target?.data?.label || 'Target'}`;
   };
+  const importDiagram = (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const raw = event.target?.result;
+        if (typeof raw !== 'string') return;
+        const data = JSON.parse(raw);
+        const importedNodes = Array.isArray(data.nodes) ? data.nodes : [];
+        const importedEdges = Array.isArray(data.edges) ? data.edges : [];
+        if (importedNodes.length === 0 && importedEdges.length === 0) {
+          alert('JSON file has no nodes or edges. Use a file exported from this app.');
+          return;
+        }
+        const normalizedNodes = importedNodes.map((n) => ({
+          ...n,
+          type: n.type || 'tableNode',
+          position: n.position || { x: 0, y: 0 },
+          data: {
+            ...(n.data || {}),
+            label: n.data?.label ?? 'Table',
+            columns: Array.isArray(n.data?.columns) ? n.data.columns : [],
+            color: n.data?.color ?? '#fbbf24',
+            onDelete: onDeleteNode,
+            onEdit: onStartEdit,
+          },
+        }));
+        setNodes(normalizedNodes);
+        setEdges(importedEdges);
+        if (Array.isArray(data.legend) && data.legend.length > 0) {
+          setLegend(data.legend);
+          localStorage.setItem('legend', JSON.stringify(data.legend));
+        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } catch (err) {
+        console.error('Import error:', err);
+        alert('Invalid JSON file. Please use a file exported from this app.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
 const exportDiagram = async (format) => {
   // Handle JSON export first
   if (format === 'json') {
@@ -387,11 +431,27 @@ const exportDiagram = async (format) => {
           </section>
 
           <section className="pt-6 border-t border-slate-800 pb-10">
-            <label className="text-[10px] font-black text-blue-400 uppercase block mb-4">3. Export</label>
+            <label className="text-[10px] font-black text-blue-400 uppercase block mb-4">3. Export / Import</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={importDiagram}
+            />
             <div className="grid grid-cols-2 gap-2">
-            
-              <button onClick={() => exportDiagram('json')} className="bg-blue-600/20 text-blue-400 p-2 rounded text-[10px] font-bold">JSON</button>
-              <button onClick={() => exportDiagram('svg')} className="bg-slate-800 p-2 rounded text-[10px] font-bold">SVG</button>
+              <button onClick={() => exportDiagram('json')} className="bg-blue-600/20 text-blue-400 p-2 rounded text-[10px] font-bold flex items-center justify-center gap-1">
+                <Download size={12} />
+                Export JSON
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-emerald-600/20 text-emerald-400 p-2 rounded text-[10px] font-bold flex items-center justify-center gap-1"
+              >
+                <Upload size={12} />
+                Import JSON
+              </button>
+              <button onClick={() => exportDiagram('svg')} className="bg-slate-800 p-2 rounded text-[10px] font-bold col-span-2">SVG</button>
             </div>
           </section>
         </div>
