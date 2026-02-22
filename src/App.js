@@ -251,25 +251,36 @@ const exportDiagram = async (format) => {
   try {
     const bounds = getNodesBounds(nodes);
     
-    // Constants for layout
+    // Generous padding so the full diagram (nodes + edges/labels) is never cropped
     const legendBuffer = 300; 
-    const margin = 100;       
+    const margin = 120;       
+    const contentPadding = 80;  // extra around node bounds for edges and labels
     
-    // Calculate total canvas dimensions
-    const exportWidth = bounds.width + legendBuffer + (margin * 2);
-    const exportHeight = bounds.height + (margin * 2);
+    const diagramWidth = bounds.width + (contentPadding * 2);
+    const diagramHeight = bounds.height + (contentPadding * 2);
+    const exportWidth = Math.ceil(diagramWidth + legendBuffer + (margin * 2));
+    const exportHeight = Math.ceil(diagramHeight + (margin * 2));
 
     const options = {
-      backgroundColor: '#f8fafc',
+      backgroundColor: '#f1f5f9',
       width: exportWidth,
       height: exportHeight,
       style: {
         width: `${exportWidth}px`,
         height: `${exportHeight}px`,
+        overflow: 'visible',
+        minWidth: `${exportWidth}px`,
+        minHeight: `${exportHeight}px`,
       },
       onClone: (clonedDoc) => {
+        clonedDoc.style.overflow = 'visible';
         const viewport = clonedDoc.querySelector('.react-flow__viewport');
         const panel = clonedDoc.querySelector('.react-flow__panel');
+        const reactFlowRenderer = clonedDoc.querySelector('.react-flow__renderer');
+
+        if (reactFlowRenderer) {
+          reactFlowRenderer.style.overflow = 'visible';
+        }
 
         // Position the Legend
         if (panel) {
@@ -287,10 +298,13 @@ const exportDiagram = async (format) => {
           }
         }
 
-        // Position the Nodes (Shift right to accommodate legend)
+        // Position and size viewport so the entire diagram is included (no crop)
         if (viewport) {
-          const x = -bounds.x + legendBuffer; 
-          const y = -bounds.y + margin;
+          viewport.style.overflow = 'visible';
+          viewport.style.minWidth = `${diagramWidth}px`;
+          viewport.style.minHeight = `${diagramHeight}px`;
+          const x = -bounds.x + contentPadding + legendBuffer;
+          const y = -bounds.y + contentPadding + margin;
           viewport.style.transform = `translate(${x}px, ${y}px) scale(1)`;
         }
       },
