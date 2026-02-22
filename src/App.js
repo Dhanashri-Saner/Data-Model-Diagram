@@ -451,7 +451,7 @@ const exportDiagram = async (format) => {
                 <Upload size={12} />
                 Import JSON
               </button>
-              <button onClick={() => exportDiagram('svg')} className="bg-slate-800 p-2 rounded text-[10px] font-bold col-span-2">SVG</button>
+              <button onClick={() => exportDiagram('svg')} className="bg-slate-800 p-2 rounded text-[10px] font-bold col-span-2">Download SVG</button>
             </div>
           </section>
         </div>
